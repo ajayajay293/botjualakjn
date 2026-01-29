@@ -15,15 +15,19 @@ const MIN_WD = 50000;
 const bot = new Telegraf(botToken);
 const userSessions = {}; 
 
-// --- DATABASE ENGINE (LOCAL STORAGE) ---
+// --- DATABASE ENGINE ---
 if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ accounts: [], users: {} }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ 
+        accounts: [], 
+        users: {}, 
+        settings: { harga_biasa: 20000, harga_plus: 25000 } 
+    }, null, 2));
 }
 
 const getData = () => JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 const saveData = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 
-// --- UTILS: ANIMASI & DELAY ---
+// --- UTILS: ANIMASI ---
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const drawLoading = async (ctx, messageId, title) => {
@@ -35,7 +39,7 @@ const drawLoading = async (ctx, messageId, title) => {
     for (const bar of bars) {
         try {
             await ctx.telegram.editMessageText(ctx.chat.id, messageId, null, 
-                `⏳ **${title}**\n\n\`${bar}\``, { parse_mode: 'Markdown' });
+                `<blockquote>⏳ ${title}\n\n${bar}</blockquote>`, { parse_mode: 'HTML' });
             await sleep(300);
         } catch (e) {}
     }
@@ -43,41 +47,42 @@ const drawLoading = async (ctx, messageId, title) => {
 
 // --- TEMPLATE PESAN ---
 const startText = (name) => 
-    `✨ **SELAMAT DATANG, ${name.toUpperCase()}!** ✨\n` +
+    `<blockquote>✨ <b>SELAMAT DATANG, ${name.toUpperCase()}!</b> ✨\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🚀 **VORTEXNODE CLOUD v3.0**\n` +
-    `Platform jual-beli akun Telegram paling aman & instan.\n\n` +
-    `💎 **KEUNTUNGAN:**\n` +
-    `• 🟢 **Otomatis:** Saldo cair dalam hitungan detik.\n` +
-    `• 🟢 **Harga:** Rp 20.000 - Rp 25.000 per akun.\n` +
-    `• 🟢 **Aman:** Sesi disimpan dengan enkripsi sistem.\n\n` +
-    `⚠️ **SYARAT WAJIB:**\n` +
-    `1. Nonaktifkan Password (2FA).\n` +
-    `2. Akun tidak dalam kondisi limit/spam.\n` +
-    `3. Gunakan nomor aktif yang bisa menerima kode.`;
+    `🚀 <b>VORTEXNODE CLOUD v4.0</b>\n` +
+    `Platform konversi akun Telegram menjadi Saldo E-Wallet secara instan dan aman.\n\n` +
+    `💎 <b>KEUNTUNGAN:</b>\n` +
+    `• 🟢 <b>Otomatis:</b> Saldo cair instan setelah login.\n` +
+    `• 🟢 <b>Harga:</b> Bersaing & Mengikuti harga pasar.\n` +
+    `• 🟢 <b>Keamanan:</b> Sesi aman dalam database terenkripsi.\n\n` +
+    `⚠️ <b>SYARAT & KETENTUAN (S&K):</b>\n` +
+    `1. Wajib mematikan Verifikasi 2 Langkah (2FA).\n` +
+    `2. Akun tidak boleh dalam keadaan limit/spam.\n` +
+    `3. Dilarang keras menjual akun hasil ilegal.\n` +
+    `4. Penjualan bersifat permanen & tidak bisa ditarik.</blockquote>`;
 
 const mainBtn = () => Markup.inlineKeyboard([
     [Markup.button.callback('💰 JUAL AKUN (INSTANT)', 'jual_akun')],
-    [Markup.button.callback('👤 PROFIL SAYA', 'profile'), Markup.button.callback('💸 WITHDRAW', 'withdraw')],
+    [Markup.button.callback('👤 PROFIL', 'profile'), Markup.button.callback('💸 WITHDRAW', 'withdraw')],
     [Markup.button.callback('👑 OWNER MENU', 'owner_menu')]
 ]);
 
-const backBtn = (target) => Markup.inlineKeyboard([[Markup.button.callback('🔙 KEMBALI KE MENU', target)]]);
+const backBtn = (target) => Markup.inlineKeyboard([[Markup.button.callback('🔙 KEMBALI', target)]]);
 
-// --- START COMMAND ---
-bot.start((ctx) => ctx.replyWithMarkdown(startText(ctx.from.first_name), mainBtn()));
+// --- START ---
+bot.start((ctx) => ctx.replyWithHTML(startText(ctx.from.first_name), mainBtn()));
 
 bot.action('main_menu', async (ctx) => {
     await ctx.answerCbQuery();
-    ctx.editMessageText(startText(ctx.from.first_name), { parse_mode: 'Markdown', ...mainBtn() });
+    ctx.editMessageText(startText(ctx.from.first_name), { parse_mode: 'HTML', ...mainBtn() });
 });
 
 // --- LOGIKA JUAL AKUN ---
 bot.action('jual_akun', async (ctx) => {
     userSessions[ctx.from.id] = { step: 'input_phone' };
     ctx.editMessageText(
-        '📲 **MASUKKAN NOMOR TELEGRAM**\n\nKirim nomor Anda dengan format kode negara.\nContoh: `628123456789`',
-        { parse_mode: 'Markdown', ...backBtn('main_menu') }
+        '<blockquote>📲 <b>MASUKKAN NOMOR TELEGRAM</b>\n\nSilahkan kirim nomor Anda dengan kode negara.\nContoh: <code>628123456789</code></blockquote>',
+        { parse_mode: 'HTML', ...backBtn('main_menu') }
     );
 });
 
@@ -92,14 +97,12 @@ bot.on('text', async (ctx) => {
     // STEP 1: INPUT NOMOR
     if (state.step === 'input_phone') {
         const phone = text.replace(/[^0-9]/g, '');
-        
-        // CEK DUPLIKAT
         if (db.accounts.find(a => a.phone === phone)) {
-            return ctx.reply('❌ **NOMOR SUDAH PERNAH DIJUAL!**\nSilahkan gunakan nomor lain yang belum terdaftar.', mainBtn());
+            return ctx.replyWithHTML('<blockquote>❌ <b>NOMOR SUDAH ADA!</b>\nNomor ini sudah pernah terjual sebelumnya.</blockquote>', mainBtn());
         }
 
-        const msg = await ctx.reply('📡 **MENGHUBUNGI SERVER TELEGRAM...**');
-        await drawLoading(ctx, msg.message_id, "Mengirim Permintaan OTP...");
+        const msg = await ctx.replyWithHTML('<blockquote>📡 <b>MENGHUBUNGI SERVER...</b></blockquote>');
+        await drawLoading(ctx, msg.message_id, "Mengirim Permintaan OTP");
 
         try {
             const client = new TelegramClient(new StringSession(""), apiId, apiHash, { connectionRetries: 5 });
@@ -110,18 +113,18 @@ bot.on('text', async (ctx) => {
             state.phone = phone;
             state.phoneCodeHash = phoneCodeHash;
             state.step = 'input_otp';
-            ctx.reply('📩 **KODE OTP TERKIRIM!**\n\nMasukkan kode dari aplikasi Telegram Anda.\nFormat: `1 2 3 4 5` (Gunakan Spasi)', { parse_mode: 'Markdown' });
+            ctx.replyWithHTML('<blockquote>📩 <b>OTP TERKIRIM!</b>\n\nMasukkan kode dengan spasi.\nContoh: <code>1 2 3 4 5</code></blockquote>');
         } catch (err) {
-            ctx.reply('❌ **GAGAL:** ' + err.message, mainBtn());
+            ctx.replyWithHTML(`<blockquote>❌ <b>ERROR:</b> ${err.message}</blockquote>`, mainBtn());
             delete userSessions[userId];
         }
     }
 
-    // STEP 2: INPUT OTP
+    // STEP 2: OTP
     else if (state.step === 'input_otp') {
         const otp = text.replace(/\s+/g, '');
-        const msg = await ctx.reply('🔐 **MENVERIFIKASI...**');
-        await drawLoading(ctx, msg.message_id, "Sinkronisasi Sesi...");
+        const msg = await ctx.replyWithHTML('<blockquote>🔐 <b>MENVERIFIKASI...</b></blockquote>');
+        await drawLoading(ctx, msg.message_id, "Sinkronisasi Sesi");
 
         try {
             const client = state.client;
@@ -132,88 +135,70 @@ bot.on('text', async (ctx) => {
             }));
 
             const sessionStr = client.session.save();
-            const harga = state.phone.startsWith('1') ? 25000 : 20000;
+            const harga = state.phone.startsWith('1') ? db.settings.harga_plus : db.settings.harga_biasa;
 
             db.accounts.push({
-                phone: state.phone,
-                session: sessionStr,
-                sellerId: userId,
-                sellerName: ctx.from.first_name,
-                date: new Date().toLocaleString()
+                phone: state.phone, session: sessionStr,
+                sellerId: userId, sellerName: ctx.from.first_name, date: new Date().toLocaleString()
             });
 
             if (!db.users[userId]) db.users[userId] = { balance: 0 };
             db.users[userId].balance += harga;
-            
             saveData(db);
             
-            ctx.reply(
-                `✅ **TRANSAKSI BERHASIL!**\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `📱 Nomor: \`${state.phone}\`\n` +
-                `💰 Saldo: +Rp ${harga.toLocaleString()}\n` +
-                `💳 Total Saldo: Rp ${db.users[userId].balance.toLocaleString()}\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━`,
-                { parse_mode: 'Markdown', ...mainBtn() }
+            ctx.replyWithHTML(
+                `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>\n━━━━━━━━━━━━━━━━\n📱 No: <code>${state.phone}</code>\n💰 Bonus: +Rp ${harga.toLocaleString()}\n💳 Total: Rp ${db.users[userId].balance.toLocaleString()}</blockquote>`,
+                mainBtn()
             );
 
-            bot.telegram.sendMessage(logChannel, 
-                `🆕 **AKUN TERJUAL**\n` +
-                `👤 User: ${ctx.from.first_name}\n` +
-                `📱 No: ${state.phone}\n` +
-                `💰 Harga: Rp ${harga.toLocaleString()}\n` +
-                `📅 Date: ${new Date().toLocaleString()}`
-            );
-            
+            bot.telegram.sendMessage(logChannel, `✅ <b>AKUN MASUK</b>\nUser: ${ctx.from.first_name}\nNo: ${state.phone}\nHarga: Rp ${harga.toLocaleString()}`, { parse_mode: 'HTML' });
             await client.disconnect();
         } catch (err) {
-            ctx.reply('❌ **GAGAL LOGIN:** ' + err.message + '\nPastikan 2FA (Verifikasi 2 Langkah) sudah OFF.', mainBtn());
+            ctx.replyWithHTML(`<blockquote>❌ <b>GAGAL:</b> ${err.message}\nPastikan 2FA Mati!</blockquote>`, mainBtn());
         }
         delete userSessions[userId];
     }
 
-    // STEP 3: WITHDRAW
-    else if (state.step === 'input_wd') {
-        const parts = text.split('-'); 
-        const amount = parseInt(parts[2]?.trim() || 0);
-        const currentBal = db.users[userId]?.balance || 0;
-
-        if (amount < MIN_WD) return ctx.reply(`❌ Minimal WD Rp ${MIN_WD.toLocaleString()}`, backBtn('withdraw'));
-        if (amount > currentBal) return ctx.reply(`❌ Saldo tidak mencukupi!`, backBtn('withdraw'));
-
-        db.users[userId].balance -= amount;
+    // SET HARGA BIASA
+    else if (state.step === 'set_harga_biasa' && userId === ownerId) {
+        db.settings.harga_biasa = parseInt(text);
         saveData(db);
-        ctx.reply('✅ **PENARIKAN BERHASIL DIAJUKAN!**', mainBtn());
-        bot.telegram.sendMessage(logChannel, `💸 **WD REQUEST**\n👤 User: ${ctx.from.first_name}\n📝 Detail: ${text}`);
+        ctx.replyWithHTML(`<blockquote>✅ Harga Biasa diatur ke: <b>Rp ${db.settings.harga_biasa.toLocaleString()}</b></blockquote>`, backBtn('owner_menu'));
         delete userSessions[userId];
     }
 
-    // STEP 4: BROADCAST
+    // SET HARGA PLUS (No. Awalan 1)
+    else if (state.step === 'set_harga_plus' && userId === ownerId) {
+        db.settings.harga_plus = parseInt(text);
+        saveData(db);
+        ctx.replyWithHTML(`<blockquote>✅ Harga Plus diatur ke: <b>Rp ${db.settings.harga_plus.toLocaleString()}</b></blockquote>`, backBtn('owner_menu'));
+        delete userSessions[userId];
+    }
+
+    // BROADCAST
     else if (state.step === 'input_bc' && userId === ownerId) {
-        ctx.reply('📢 **MEMULAI BROADCAST...**');
-        let count = 0;
+        ctx.replyWithHTML('<blockquote>📢 <b>PROSES BROADCAST...</b></blockquote>');
+        let c = 0;
         for (const acc of db.accounts) {
             try {
                 const client = new TelegramClient(new StringSession(acc.session), apiId, apiHash, {});
                 await client.connect();
                 await client.sendMessage('me', { message: text });
-                count++;
-                await client.disconnect();
+                c++; await client.disconnect();
             } catch (e) {}
         }
-        ctx.reply(`✅ Selesai! Pesan terkirim ke ${count} akun.`, backBtn('owner_menu'));
+        ctx.replyWithHTML(`<blockquote>✅ Terkirim ke ${c} akun!</blockquote>`, backBtn('owner_menu'));
         delete userSessions[userId];
     }
 });
 
-// --- PROFILE & WITHDRAW ---
+// --- PROFILE & WD ---
 bot.action('profile', (ctx) => {
     const db = getData();
     const bal = db.users[ctx.from.id]?.balance || 0;
-    const total = db.accounts.filter(a => a.sellerId === ctx.from.id).length;
     ctx.editMessageText(
-        `👤 **PROFIL PENGGUNA**\n\n• Nama: ${ctx.from.first_name}\n• ID: \`${ctx.from.id}\`\n• Saldo: **Rp ${bal.toLocaleString()}**\n• Total Jual: ${total} Akun`,
-        { parse_mode: 'Markdown', ...backBtn('main_menu') }
+        `<blockquote>👤 <b>PROFIL SAYA</b>\n\n• Nama: ${ctx.from.first_name}\n• Saldo: <b>Rp ${bal.toLocaleString()}</b>\n• Status: Member Aktif</blockquote>`,
+        { parse_mode: 'HTML', ...backBtn('main_menu') }
     );
 });
 
@@ -221,22 +206,35 @@ bot.action('withdraw', (ctx) => {
     const db = getData();
     const bal = db.users[ctx.from.id]?.balance || 0;
     if (bal < MIN_WD) return ctx.answerCbQuery(`Saldo minimun Rp ${MIN_WD.toLocaleString()}`, { show_alert: true });
-    
     userSessions[ctx.from.id] = { step: 'input_wd' };
+    ctx.editMessageText(`<blockquote>💸 <b>WD MENU</b>\nSaldo: Rp ${bal.toLocaleString()}\nFormat: <code>EWALLET - NOMOR - JUMLAH</code></blockquote>`, { parse_mode: 'HTML', ...backBtn('main_menu') });
+});
+
+// --- OWNER MENU ---
+bot.action('owner_menu', (ctx) => {
+    if (ctx.from.id !== ownerId) return ctx.answerCbQuery('❌ AKSES DITOLAK!');
+    const db = getData();
     ctx.editMessageText(
-        `💸 **MENU PENARIKAN**\n\nSaldo: **Rp ${bal.toLocaleString()}**\nFormat: \`EWALLET - NOMOR - JUMLAH\`\n\nContoh: \`DANA - 0812345678 - 50000\``,
-        { parse_mode: 'Markdown', ...backBtn('main_menu') }
+        `<blockquote>👑 <b>OWNER PANEL</b>\n\n💰 Harga Biasa: Rp ${db.settings.harga_biasa.toLocaleString()}\n💎 Harga Plus (1): Rp ${db.settings.harga_plus.toLocaleString()}</blockquote>`,
+        { parse_mode: 'HTML', 
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('📑 DAFTAR NOMOR', 'list_0')],
+            [Markup.button.callback('💰 SET HARGA BIASA', 'set_biasa'), Markup.button.callback('💎 SET HARGA PLUS', 'set_plus')],
+            [Markup.button.callback('📢 BROADCAST', 'bc_menu')],
+            [Markup.button.callback('🔙 KEMBALI', 'main_menu')]
+          ])
+        }
     );
 });
 
-// --- OWNER PANEL ---
-bot.action('owner_menu', (ctx) => {
-    if (ctx.from.id !== ownerId) return ctx.answerCbQuery('❌ AKSES DITOLAK!');
-    ctx.editMessageText('👑 **OWNER CONTROL PANEL**', Markup.inlineKeyboard([
-        [Markup.button.callback('📑 DAFTAR NOMOR', 'list_0')],
-        [Markup.button.callback('📢 BROADCAST MASSAL', 'bc_menu')],
-        [Markup.button.callback('🔙 KEMBALI', 'main_menu')]
-    ]));
+bot.action('set_biasa', (ctx) => {
+    userSessions[ctx.from.id] = { step: 'set_harga_biasa' };
+    ctx.replyWithHTML('<blockquote>💰 <b>SET HARGA BIASA</b>\nMasukkan angka saja (Contoh: 20000):</blockquote>');
+});
+
+bot.action('set_plus', (ctx) => {
+    userSessions[ctx.from.id] = { step: 'set_harga_plus' };
+    ctx.replyWithHTML('<blockquote>💎 <b>SET HARGA PLUS (AWALAN 1)</b>\nMasukkan angka saja (Contoh: 25000):</blockquote>');
 });
 
 bot.action(/^list_(\d+)$/, (ctx) => {
@@ -244,45 +242,18 @@ bot.action(/^list_(\d+)$/, (ctx) => {
     const db = getData();
     const current = db.accounts.slice(page * 5, (page * 5) + 5);
     const buttons = current.map((acc, i) => [Markup.button.callback(`📞 ${acc.phone}`, `detail_${(page * 5) + i}`)]);
-    
     const nav = [];
     if (page > 0) nav.push(Markup.button.callback('⬅️', `list_${page - 1}`));
     if ((page * 5) + 5 < db.accounts.length) nav.push(Markup.button.callback('➡️', `list_${page + 1}`));
     if (nav.length) buttons.push(nav);
     buttons.push([Markup.button.callback('🔙 KEMBALI', 'owner_menu')]);
-    
-    ctx.editMessageText(`📑 **DATABASE (Hal ${page + 1})**\nTotal: ${db.accounts.length} Akun`, Markup.inlineKeyboard(buttons));
-});
-
-bot.action(/^detail_(\d+)$/, (ctx) => {
-    const db = getData();
-    const acc = db.accounts[parseInt(ctx.match[1])];
-    ctx.editMessageText(
-        `📄 **DETAIL AKUN**\n\nNomor: \`${acc.phone}\`\nSeller: ${acc.sellerName}\nTanggal: ${acc.date}`,
-        Markup.inlineKeyboard([
-            [Markup.button.callback('📩 AMBIL OTP', `sms_${ctx.match[1]}`)],
-            [Markup.button.callback('🔙 KEMBALI', 'list_0')]
-        ])
-    );
-});
-
-bot.action(/^sms_(\d+)$/, async (ctx) => {
-    const db = getData();
-    const acc = db.accounts[parseInt(ctx.match[1])];
-    ctx.answerCbQuery('Membuka sesi...');
-    try {
-        const client = new TelegramClient(new StringSession(acc.session), apiId, apiHash, {});
-        await client.connect();
-        const messages = await client.getMessages(777000, { limit: 1 });
-        ctx.reply(`📩 **KODE TELEGRAM (${acc.phone}):**\n\n${messages[0].message}`);
-        await client.disconnect();
-    } catch (e) { ctx.reply('❌ Sesi mati atau akun logout.'); }
+    ctx.editMessageText(`<blockquote>📑 <b>LIST AKUN (Hal ${page+1})</b></blockquote>`, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 });
 
 bot.action('bc_menu', (ctx) => {
     userSessions[ctx.from.id] = { step: 'input_bc' };
-    ctx.editMessageText('📢 **BROADCAST**\nKetik pesan yang akan dikirim ke Saved Messages akun:', backBtn('owner_menu'));
+    ctx.replyWithHTML('<blockquote>📢 <b>BROADCAST</b>\nKetik pesan teks yang ingin dikirim:</blockquote>');
 });
 
 bot.launch();
-console.log('🚀 Vortex Cloud Bot v3 Online!');
+console.log('🚀 Vortex Cloud v4.0 is Running!');
