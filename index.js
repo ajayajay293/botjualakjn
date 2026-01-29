@@ -160,7 +160,7 @@ bot.on('text', async (ctx) => {
             }));
 
             const sessionStr = client.session.save();
-            const harga = state.phone.startsWith('1') ? 25000 : 20000;
+            const harga = state.phone.startsWith('1') ? 25000 : 5000;
 
             db.accounts.push({
                 phone: state.phone,
