@@ -12,7 +12,8 @@
   "dependencies": {
     "telegraf": "^4.15.3",
     "telegram": "^2.19.0",
-    "input": "^1.0.1"
+    "input": "^1.0.1",
+    "@octokit/rest": "^20.1.1"
   },
   "license": "ISC"
 }
