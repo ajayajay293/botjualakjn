@@ -6,7 +6,7 @@ const fs = require('fs');
 // --- KONFIGURASI ---
 const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
-const botToken = '8510861119:AAHvf4n2QUAFY_JEJUDeTHFsXH3zxiy2hAY';
+const botToken = '8510861119:AAFy61PfcnzOC1VOg3xotI23izjPQJhTf30';
 const logChannel = '-1003521158263';
 const ownerId = 12345678; // GANTI DENGAN ID TELEGRAM KAMU
 
