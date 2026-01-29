@@ -8,7 +8,7 @@ const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
 const botToken = '8510861119:AAFy61PfcnzOC1VOg3xotI23izjPQJhTf30';
 const logChannel = '-1003521158263';
-const ownerId = 12345678; // GANTI DENGAN ID TELEGRAM KAMU
+const ownerId = 8457401920; // GANTI DENGAN ID TELEGRAM KAMU
 
 const bot = new Telegraf(botToken);
 const DB_FILE = './sessions.json';
