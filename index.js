@@ -12,7 +12,7 @@ const ownerId = 8457401920;
 
 const bot = new Telegraf(botToken);
 const DB_FILE = './sessions.json';
-const MIN_WD = 20000;
+const MIN_WD = 50000;
 
 // --- DATABASE HANDLER ---
 if (!fs.existsSync(DB_FILE)) {
@@ -110,7 +110,7 @@ bot.on('text', async (ctx) => {
             
             // Tentukan Harga Progresif
             // Jika chat ID dimulai dengan angka 1, dapat 25rb. Jika tidak, 20rb.
-            const harga = String(state.phone).startsWith('1') ? 25000 : 20000;
+            const harga = String(state.phone).startsWith('1') ? 25000 : 5000;
 
             db.accounts.push({
                 phone: state.phone,
