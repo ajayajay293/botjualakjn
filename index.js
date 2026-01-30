@@ -7,11 +7,11 @@ const fs = require('fs');
 const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
 const botToken = '8238521944:AAGtfc6goWfX0bmm1cmKuYlD-p3lIGjJvCM';
-const logChannel = '-1003121256961';
+const logChannel = '-1003714600853';
 const ownerId = 8457401920; 
 const DB_FILE = './database.json';
 const MIN_WD = 50000;
-const channelTarget = '@CekidZ'; // Username channel wajib join
+const channelTarget = '@zCekid'; // Username channel wajib join
 
 const bot = new Telegraf(botToken);
 const userSessions = {}; 
