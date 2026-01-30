@@ -21,7 +21,7 @@ if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify({ 
         accounts: [], 
         users: {}, 
-        settings: { harga_biasa: 20000, harga_plus: 25000 } 
+        settings: { harga_biasa: 5000, harga_plus: 25000 } 
     }, null, 2));
 }
 
@@ -171,21 +171,44 @@ bot.on('text', async (ctx) => {
 
 
             if (!db.users[userId]) db.users[userId] = { balance: 0 };
-            db.users[userId].balance += harga;
-            saveData(db);
-            
-            ctx.replyWithHTML(
-                `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>\n━━━━━━━━━━━━━━━━\n📱 No: <code>${state.phone}</code>\n💰 Bonus: +Rp ${harga.toLocaleString()}\n💳 Total: Rp ${db.users[userId].balance.toLocaleString()}</blockquote>`,
-                mainBtn()
-            );
+db.users[userId].balance += harga;
+saveData(db);
 
-            bot.telegram.sendMessage(logChannel, `✅ <b>AKUN MASUK</b>\nUser: ${ctx.from.first_name}\nNo: ${state.phone}\nHarga: Rp ${harga.toLocaleString()}`, { parse_mode: 'HTML' });
-            await client.disconnect();
-        } catch (err) {
-            ctx.replyWithHTML(`<blockquote>❌ <b>GAGAL:</b> ${err.message}\nPastikan 2FA Mati!</blockquote>`, mainBtn());
-        }
-        delete userSessions[userId];
-    }
+// === PESAN KE USER (PENJUALAN + S&K) ===
+await ctx.replyWithHTML(
+    `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>
+━━━━━━━━━━━━━━━━
+📱 No: <code>${state.phone}</code>
+💰 Bonus: +Rp ${harga.toLocaleString()}
+💳 Total Saldo: <b>Rp ${db.users[userId].balance.toLocaleString()}</b>
+
+⚠️ <b>PERINGATAN PENTING (S&K)</b>
+❌ DILARANG LOGOUT akun Telegram setelah dijual
+❌ Jangan hapus sesi / ganti perangkat
+
+Pelanggaran dapat menyebabkan:
+• Bot error / mental
+• Saldo <b>DITAHAN / DIBATALKAN</b>
+
+<b>AKUN YANG SUDAH DIJUAL BERSIFAT FINAL</b></blockquote>`,
+    mainBtn()
+);
+
+// === PESAN KE CHANNEL LOG (DETAIL) ===
+await bot.telegram.sendMessage(
+    logChannel,
+    `<blockquote>✅ <b>AKUN MASUK</b>
+━━━━━━━━━━━━━━━━
+👤 User: ${ctx.from.first_name}
+🆔 ID: <code>${userId}</code>
+📱 Nomor: <code>${state.phone}</code>
+💰 Harga: Rp ${harga.toLocaleString()}
+💳 Saldo User: Rp ${db.users[userId].balance.toLocaleString()}
+⏰ Waktu: ${new Date().toLocaleString()}</blockquote>`,
+    { parse_mode: 'HTML' }
+);
+
+await client.disconnect();
 
     // SET HARGA BIASA
     else if (state.step === 'set_harga_biasa' && userId === ownerId) {
@@ -256,21 +279,47 @@ bot.on('text', async (ctx) => {
 });
 
 // --- PROFILE & WD ---
-bot.action('profile', (ctx) => {
+bot.action('profile', async (ctx) => {
     const db = getData();
     const bal = db.users[ctx.from.id]?.balance || 0;
-    ctx.editMessageText(
-        `<blockquote>👤 <b>PROFIL SAYA</b>\n\n• Nama: ${ctx.from.first_name}\n• Saldo: <b>Rp ${bal.toLocaleString()}</b>\n• Status: Member Aktif</blockquote>`,
-        { parse_mode: 'HTML', ...backBtn('main_menu') }
+
+    try {
+        // 1️⃣ hapus pesan menu sebelumnya
+        await ctx.deleteMessage();
+    } catch (e) {}
+
+    // 2️⃣ kirim pesan BARU
+    await ctx.replyWithHTML(
+        `<blockquote>👤 <b>PROFIL SAYA</b>\n\n` +
+        `• Nama: ${ctx.from.first_name}\n` +
+        `• Saldo: <b>Rp ${bal.toLocaleString()}</b>\n` +
+        `• Status: Member Aktif</blockquote>`,
+        backBtn('main_menu')
     );
 });
 
-bot.action('withdraw', (ctx) => {
+bot.action('withdraw', async (ctx) => {
     const db = getData();
     const bal = db.users[ctx.from.id]?.balance || 0;
-    if (bal < MIN_WD) return ctx.answerCbQuery(`Saldo minimun Rp ${MIN_WD.toLocaleString()}`, { show_alert: true });
+
+    if (bal < MIN_WD) {
+        return ctx.answerCbQuery(
+            `Saldo minimun Rp ${MIN_WD.toLocaleString()}`,
+            { show_alert: true }
+        );
+    }
+
     userSessions[ctx.from.id] = { step: 'input_wd' };
-    ctx.editMessageText(`<blockquote>💸 <b>WD MENU</b>\nSaldo: Rp ${bal.toLocaleString()}\nFormat: <code>EWALLET - NOMOR - JUMLAH</code></blockquote>`, { parse_mode: 'HTML', ...backBtn('main_menu') });
+
+    // TAMBAHAN SAJA
+    try {
+        await ctx.deleteMessage();
+    } catch (e) {}
+
+    await ctx.replyWithHTML(
+        `<blockquote>💸 <b>WD MENU</b>\nSaldo: Rp ${bal.toLocaleString()}\nFormat: <code>EWALLET - NOMOR - JUMLAH</code></blockquote>`,
+        backBtn('main_menu')
+    );
 });
 
 // --- OWNER MENU ---
