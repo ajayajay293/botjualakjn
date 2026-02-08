@@ -6,12 +6,12 @@ const fs = require('fs');
 // --- KONFIGURASI ---
 const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
-const botToken = '8238521944:AAGtfc6goWfX0bmm1cmKuYlD-p3lIGjJvCM';
-const logChannel = '-1003714600853';
-const ownerId = 8457401920; 
+const botToken = 'AGtfc6goWfX0bmm1cmKuYlD-p3lIGjJvCM'';
+const logChannel = '-1003865822786';
+const ownerId = 6816905895; 
 const DB_FILE = './database.json';
 const MIN_WD = 50000;
-const channelTarget = '@zCekid'; // Username channel wajib join
+const channelTarget = '@StoreReall'; // Username channel wajib join
 
 const bot = new Telegraf(botToken);
 const userSessions = {}; 
