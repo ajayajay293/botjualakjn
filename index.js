@@ -11,7 +11,7 @@ const logChannel = '-1003865822786';
 const ownerId = 6816905895; 
 const DB_FILE = './database.json';
 const MIN_WD = 50000;
-const channelTarget = '@StoreReall'; // Username channel wajib join
+const channelTarget = '@StoreRealll'; // Username channel wajib join
 
 const bot = new Telegraf(botToken);
 const userSessions = {}; 
