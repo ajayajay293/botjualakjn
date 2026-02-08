@@ -6,7 +6,7 @@ const fs = require('fs');
 // --- KONFIGURASI ---
 const apiId = 31201777;
 const apiHash = '791bb0f9d012531d922086c8489dd705';
-const botToken = 'AGtfc6goWfX0bmm1cmKuYlD-p3lIGjJvCM'';
+const botToken = '8326920824:AAEYa7KWL6N2Ha7WB_07InEsgs3i7enZdCs'';
 const logChannel = '-1003865822786';
 const ownerId = 6816905895; 
 const DB_FILE = './database.json';
