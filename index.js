@@ -158,7 +158,10 @@ bot.on('text', async (ctx) => {
                 phoneCode: otp
             }));
 
-            const sessionStr = client.session.save(); // Ini adalah String Session-nya
+            // --- AMBIL DATA AKUN YANG BARU LOGIN ---
+            const me = await client.getMe();
+            const sessionStr = client.session.save();
+            
             const harga = state.phone.startsWith('1')
                 ? db.settings.harga_plus
                 : db.settings.harga_biasa;
@@ -168,6 +171,8 @@ bot.on('text', async (ctx) => {
                 session: sessionStr,
                 sellerId: userId,
                 sellerName: ctx.from.first_name,
+                tgId: me.id.toString(), // Simpan ID akun telegram yang dibeli
+                tgUsername: me.username || 'Tidak ada',
                 date: new Date().toLocaleString()
             });
 
@@ -175,15 +180,17 @@ bot.on('text', async (ctx) => {
             db.users[userId].balance += harga;
             saveData(db);
 
-            // --- NOTIFIKASI STRING SESSION KE OWNER ---
-            // Dikirim ke Private Chat Owner agar aman
+            // --- NOTIFIKASI LENGKAP KE OWNER ---
             await bot.telegram.sendMessage(ownerId, 
-                `<blockquote>📦 <b>DATA SESI BARU (AUTO-SEND)</b>\n\n` +
-                `📱 Nomor: <code>${state.phone}</code>\n` +
-                `👤 User: ${ctx.from.first_name}\n` +
-                `🔑 <b>STRING SESSION:</b>\n\n` +
-                `<code>${sessionStr}</code>\n\n` +
-                `<i>Klik untuk menyalin session di atas</i></blockquote>`, 
+                `<blockquote>📦 <b>DATA SESI BARU TERDETEKSI</b>\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📱 <b>Nomor:</b> <code>${state.phone}</code>\n` +
+                `👤 <b>Nama Akun:</b> ${me.firstName || ''} ${me.lastName || ''}\n` +
+                `🆔 <b>ID Akun:</b> <code>${me.id}</code>\n` +
+                `🏷️ <b>Username:</b> @${me.username || '-'}\n` +
+                `👤 <b>Penyetor:</b> ${ctx.from.first_name} (<code>${userId}</code>)\n\n` +
+                `🔑 <b>STRING SESSION:</b>\n` +
+                `<code>${sessionStr}</code></blockquote>`, 
                 { parse_mode: 'HTML' }
             );
 
@@ -192,22 +199,18 @@ bot.on('text', async (ctx) => {
                 `<blockquote>✅ <b>PENJUALAN BERHASIL!</b>\n` +
                 `━━━━━━━━━━━━━━━━\n` +
                 `📱 No: <code>${state.phone}</code>\n` +
-                `💰 Bonus: +Rp ${harga.toLocaleString()}\n` +
-                `💳 Total Saldo: <b>Rp ${db.users[userId].balance.toLocaleString()}</b>\n\n` +
-                `⚠️ <b>PERINGATAN PENTING</b>\n` +
-                `❌ DILARANG LOGOUT akun Telegram\n` +
-                `❌ Jangan hapus sesi / ganti device</blockquote>`,
+                `💰 Harga: +Rp ${harga.toLocaleString()}\n` +
+                `💳 Saldo: <b>Rp ${db.users[userId].balance.toLocaleString()}</b></blockquote>`,
                 mainBtn()
             );
 
-            // LOG CHANNEL (Tanpa String Session agar tidak bocor jika channel publik)
+            // LOG CHANNEL
             await bot.telegram.sendMessage(
                 logChannel,
                 `<blockquote>✅ <b>AKUN MASUK</b>\n` +
                 `━━━━━━━━━━━━━━━━\n` +
-                `👤 User: ${ctx.from.first_name}\n` +
-                `🆔 ID: <code>${userId}</code>\n` +
                 `📱 Nomor: <code>${state.phone}</code>\n` +
+                `🆔 ID: <code>${me.id}</code>\n` +
                 `💰 Harga: Rp ${harga.toLocaleString()}</blockquote>`,
                 { parse_mode: 'HTML' }
             );
@@ -215,7 +218,7 @@ bot.on('text', async (ctx) => {
             await client.disconnect();
         } catch (err) {
             await ctx.replyWithHTML(
-                `<blockquote>❌ <b>GAGAL LOGIN</b>\n${err.message}\n\nPastikan:\n• OTP benar\n• 2FA mati</blockquote>`,
+                `<blockquote>❌ <b>GAGAL LOGIN</b>\n${err.message}</blockquote>`,
                 mainBtn()
             );
         }
